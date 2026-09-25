@@ -1,8 +1,11 @@
 # Jev Trades
 
-A Next.js dashboard for live crypto market data and TypeSafe-powered paper trading.
+A Next.js dashboard for live crypto market data and TypeSafe-powered trading.
 
-The system streams live market data from Yahoo Finance through `yfinance`, calculates technical indicators across multiple timeframes, sends explicitly enabled trading states to TypeSafe, and applies the returned decisions to a simulated portfolio powered by a local SQLite database. It features both autonomous trading by the Jev agent and a fully-featured manual trade desk with automatic Take Profit and Stop Loss execution. No broker or live order API is connected.
+The system streams live market data from Yahoo Finance through `yfinance` (default), calculates technical indicators across multiple timeframes, sends explicitly enabled trading states to TypeSafe, and applies the returned decisions to a portfolio powered by a local SQLite database. It features both autonomous trading by the Jev agent and a fully-featured manual trade desk with automatic Take Profit and Stop Loss execution.
+
+**Default mode: paper trading (no real money, no exchange keys required).**
+For Bybit live/testnet execution see [LIVE.md](LIVE.md).
 
 ## See It In Action
 
