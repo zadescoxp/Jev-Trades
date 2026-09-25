@@ -1182,3 +1182,237 @@ h2 {
         grid-template-columns: 1fr;
     }
 }
+
+/* Broker Banner */
+.broker-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+}
+
+.broker-banner.testnet {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0ea5e9;
+    border-bottom-color: rgba(14, 165, 233, 0.3);
+}
+
+.broker-banner.mainnet {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-bottom-color: rgba(239, 68, 68, 0.3);
+}
+
+.broker-banner.kill-active {
+    background: #ef4444;
+    color: white;
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.broker-details {
+    opacity: 0.8;
+    font-size: 11px;
+}
+
+.kill-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.kill-btn:hover {
+    background: #dc2626;
+    transform: scale(1.02);
+}
+
+.testnet-badge {
+    background: rgba(14, 165, 233, 0.15) !important;
+    color: #0ea5e9 !important;
+    border-color: rgba(14, 165, 233, 0.3) !important;
+}
+
+.mainnet-badge {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+/* Unified Execution Panel */
+.unified-settings {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.setting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+}
+
+.key-field-unified {
+    flex: 2;
+}
+
+.field-label {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.unified-settings select,
+.unified-settings input {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+.unified-settings select:focus,
+.unified-settings input:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+.apply-btn {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 34px;
+}
+
+.apply-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.execution-mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    background: rgba(15, 23, 42, 0.4);
+    padding: 0.35rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.exec-mode-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.exec-mode-btn.active {
+    background: #1e293b;
+    color: #f8fafc;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.jev-auto-panel {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.jev-desc {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.jev-execute-btn {
+    background: #10b981;
+    color: #0f172a;
+    border: none;
+    padding: 1rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.jev-execute-btn:hover {
+    background: #059669;
+}
+
+.jev-execute-btn.running {
+    background: #ef4444;
+    color: #fff;
+}
+
+.jev-execute-btn.running:hover {
+    background: #dc2626;
+}
+
+.jev-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #10b981;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}

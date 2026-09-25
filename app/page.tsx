@@ -75,6 +75,14 @@ type Snapshot = {
   trading: Trading;
   settings: { capital: number; max_wallet_position_pct: number; risk_appetite: string; trading_enabled: boolean };
 };
+type BrokerConfig = {
+  broker: string;
+  sandbox: boolean;
+  armed: boolean;
+  market_source: string;
+  tp_sl_mode: string;
+  kill_switch: boolean;
+};
 
 const feedBase = process.env.NEXT_PUBLIC_MARKET_FEED_URL ?? "http://127.0.0.1:8765";
 const streamBase = process.env.NEXT_PUBLIC_MARKET_STREAM_URL ?? `${feedBase}/stream`;
@@ -130,6 +138,7 @@ const allIndicatorKeys = indicatorGroups.flatMap((group) => group.items.map(([ke
 
 export default function Home() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [brokerConfig, setBrokerConfig] = useState<BrokerConfig | null>(null);
   const [symbol, setSymbol] = useState("BTC-USD");
   const [capital, setCapital] = useState("100000");
   const [maxWalletPositionPct, setMaxWalletPositionPct] = useState("75");
@@ -139,6 +148,7 @@ export default function Home() {
   const [overlays, setOverlays] = useState(["ema20"]);
   const [selectedIndicators, setSelectedIndicators] = useState(["ema_20", "sma_50", "relative_strength_index_14", "macd_level_12_26"]);
   const [activityTab, setActivityTab] = useState<"manual" | "logs" | "positions">("manual");
+  const [executionMode, setExecutionMode] = useState<"jev" | "manual">("jev");
   const [activeTimeframes, setActiveTimeframes] = useState<string[]>(["1m"]);
   const [tradeTimeframe, setTradeTimeframe] = useState<string>("1m");
   const [chartTimeframe, setChartTimeframe] = useState<string>("1m");
@@ -159,6 +169,21 @@ export default function Home() {
   const [isEditingTpSl, setIsEditingTpSl] = useState(false);
   const [editTpVal, setEditTpVal] = useState("");
   const [editSlVal, setEditSlVal] = useState("");
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(`${feedBase}/config`);
+        const data = await res.json();
+        if (data.ok) setBrokerConfig(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    void fetchConfig();
+    const interval = setInterval(() => { void fetchConfig(); }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const source = new EventSource(`${streamBase}?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(chartTimeframe)}`);
@@ -206,8 +231,8 @@ export default function Home() {
   const toggleIndicator = (name: string) => setSelectedIndicators((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
   const labelFor = (name: string) => indicatorGroups.flatMap((group) => group.items).find(([key]) => key === name)?.[1] ?? name;
 
-  // Execute manual order (buy, sell, exit)
-  const handleExecuteOrder = async (action: "buy" | "sell" | "exit", extraParams: Record<string, any> = {}) => {
+  // Execute manual order (buy, sell, exit, kill_switch)
+  const handleExecuteOrder = async (action: "buy" | "sell" | "exit" | "kill_switch", extraParams: Record<string, any> = {}) => {
     setOrderLoading(true);
     setFeedback(null);
     try {
@@ -299,6 +324,23 @@ export default function Home() {
 
   return (
     <main className="dashboard">
+      {brokerConfig && brokerConfig.broker !== "paper" ? (
+        <div className={`broker-banner ${brokerConfig.kill_switch ? "kill-active" : brokerConfig.sandbox ? "testnet" : "mainnet"}`}>
+          <div className="banner-content">
+            <span className="broker-mode">
+              {brokerConfig.kill_switch ? "⚠️ KILL SWITCH ACTIVE" : brokerConfig.sandbox ? "🧪 BYBIT TESTNET" : "⚠️ BYBIT MAINNET (LIVE)"}
+            </span>
+            <span className="broker-details">
+              Market Data: {brokerConfig.market_source} | TP/SL Mode: {brokerConfig.tp_sl_mode}
+            </span>
+          </div>
+          {!brokerConfig.kill_switch && (
+            <button className="kill-btn" onClick={() => void handleExecuteOrder("kill_switch")}>
+              STOP ALL & FLATTEN (KILL SWITCH)
+            </button>
+          )}
+        </div>
+      ) : null}
       <header className="topbar">
         <div>
           <p className="eyebrow">JEV TRADES / LIVE FEED</p>
@@ -317,63 +359,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      <section className="portfolio-controls">
-        <label>
-          ASSET
-          <div className="asset-picker">
-            <Image src={assetLogos[symbol]} alt="" className="asset-logo" width={22} height={22} />
-            <select
-              value={symbol}
-              onChange={(event) => {
-                const nextSymbol = event.target.value;
-                setSymbol(nextSymbol);
-                void configurePortfolio(false, nextSymbol);
-              }}
-            >
-              {symbols.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </div>
-        </label>
-        <label>
-          CAPITAL
-          <input type="number" min="0" step="100" value={capital} onChange={(event) => setCapital(event.target.value)} />
-        </label>
-        <label>
-          MAX POSITION %
-          <input type="number" min="1" max="100" step="1" value={maxWalletPositionPct} onChange={(event) => setMaxWalletPositionPct(event.target.value)} />
-        </label>
-        <label>
-          RISK
-          <select value={riskAppetite} onChange={(event) => setRiskAppetite(event.target.value)}>
-            <option value="conservative">Conservative</option>
-            <option value="balanced">Balanced</option>
-            <option value="aggressive">Aggressive</option>
-          </select>
-        </label>
-        <label className="key-field">
-          TYPESAFE KEY
-          <input type="password" autoComplete="off" placeholder="Optional if server has one" value={typeSafeKey} onChange={(event) => setTypeSafeKey(event.target.value)} />
-        </label>
-        <label>
-          TIMEFRAMES
-          <select multiple value={activeTimeframes} onChange={(e) => setActiveTimeframes(Array.from(e.target.selectedOptions, option => option.value))} style={{ height: "60px" }}>
-            <option value="1m">1m</option>
-            <option value="5m">5m</option>
-            <option value="15m">15m</option>
-            <option value="1h">1h</option>
-            <option value="4h">4h</option>
-          </select>
-        </label>
-        <button className="control" onClick={() => void configurePortfolio()}>
-          Apply portfolio
-        </button>
-        <button className={tradingEnabled ? "trade-toggle running" : "trade-toggle"} onClick={() => void configurePortfolio(!tradingEnabled)}>
-          {tradingEnabled ? `Stop Jev auto-trading ${symbol}` : `Start Jev auto-trading ${symbol}`}
-        </button>
-      </section>
 
       <section className="quote-grid">
         <div className="quote">
@@ -467,12 +452,21 @@ export default function Home() {
         <aside className="trading-panel">
           <div className="panel-head">
             <div>
-              <p className="eyebrow">PAPER PORTFOLIO & EXECUTION</p>
-              <h2>Live Trade Desk</h2>
+              <p className="eyebrow">
+                {brokerConfig && brokerConfig.broker.includes("bybit")
+                  ? brokerConfig.sandbox ? "BYBIT TESTNET" : "BYBIT MAINNET"
+                  : "PAPER TRADING"}
+              </p>
+              <h2>Trade Desk</h2>
             </div>
-            <span className="paper-badge">SIMULATION ONLY</span>
+            <span className={`paper-badge ${brokerConfig && brokerConfig.broker.includes("bybit") ? (brokerConfig.sandbox ? "testnet-badge" : "mainnet-badge") : ""}`}>
+              {brokerConfig && brokerConfig.broker.includes("bybit")
+                ? brokerConfig.sandbox ? "TESTNET" : "REAL MONEY"
+                : "SIMULATION"}
+            </span>
           </div>
 
+          {/* Account Overview */}
           <div className="account-grid">
             <Metric label="AVAILABLE CASH" value={snapshot ? `$${snapshot.trading.account.available_cash.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "--"} />
             <Metric label="EQUITY" value={snapshot ? `$${snapshot.trading.account.equity.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "--"} />
@@ -485,6 +479,67 @@ export default function Home() {
                   : "--"
               }
             />
+          </div>
+
+          {/* Unified Settings */}
+          <div className="unified-settings">
+            <div className="settings-row">
+              <label className="setting-field">
+                <span className="field-label">ASSET</span>
+                <div className="asset-picker">
+                  <Image src={assetLogos[symbol]} alt="" className="asset-logo" width={18} height={18} />
+                  <select
+                    value={symbol}
+                    onChange={(event) => {
+                      const nextSymbol = event.target.value;
+                      setSymbol(nextSymbol);
+                      void configurePortfolio(false, nextSymbol);
+                    }}
+                  >
+                    {symbols.map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+              <label className="setting-field">
+                <span className="field-label">CAPITAL ($)</span>
+                <input type="number" min="0" step="100" value={capital} onChange={(event) => setCapital(event.target.value)} />
+              </label>
+            </div>
+            <div className="settings-row">
+              <label className="setting-field">
+                <span className="field-label">MAX POS %</span>
+                <input type="number" min="1" max="100" step="1" value={maxWalletPositionPct} onChange={(event) => setMaxWalletPositionPct(event.target.value)} />
+              </label>
+              <label className="setting-field">
+                <span className="field-label">RISK</span>
+                <select value={riskAppetite} onChange={(event) => setRiskAppetite(event.target.value)}>
+                  <option value="conservative">Conservative</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="aggressive">Aggressive</option>
+                </select>
+              </label>
+              <label className="setting-field">
+                <span className="field-label">TIMEFRAME</span>
+                <select value={tradeTimeframe} onChange={(e) => { setTradeTimeframe(e.target.value); setActiveTimeframes([e.target.value]); }}>
+                  <option value="1m">1m</option>
+                  <option value="5m">5m</option>
+                  <option value="15m">15m</option>
+                  <option value="1h">1h</option>
+                  <option value="4h">4h</option>
+                </select>
+              </label>
+            </div>
+            <div className="settings-row">
+              <label className="setting-field key-field-unified">
+                <span className="field-label">TYPESAFE KEY</span>
+                <input type="password" autoComplete="off" placeholder="Optional" value={typeSafeKey} onChange={(event) => setTypeSafeKey(event.target.value)} />
+              </label>
+              <button className="control apply-btn" onClick={() => void configurePortfolio()}>
+                Apply
+              </button>
+            </div>
           </div>
 
           {/* Active Position Spotlight & Quick Exit */}
@@ -594,22 +649,48 @@ export default function Home() {
             </div>
           ) : null}
 
-          {/* Activity Tabs */}
-          <div className="activity-tabs">
-            <button className={activityTab === "manual" ? "activity-tab active" : "activity-tab"} onClick={() => setActivityTab("manual")}>
-              Trade Order
+          {/* Execution Mode Toggle */}
+          <div className="execution-mode-toggle">
+            <button
+              className={`exec-mode-btn ${executionMode === "jev" ? "active" : ""}`}
+              onClick={() => setExecutionMode("jev")}
+            >
+              🤖 Jev Auto
             </button>
-            <button className={activityTab === "logs" ? "activity-tab active" : "activity-tab"} onClick={() => setActivityTab("logs")}>
-              Jev Logs
-            </button>
-            <button className={activityTab === "positions" ? "activity-tab active" : "activity-tab"} onClick={() => setActivityTab("positions")}>
-              History ({snapshot?.trading.positions.length ?? 0})
+            <button
+              className={`exec-mode-btn ${executionMode === "manual" ? "active" : ""}`}
+              onClick={() => setExecutionMode("manual")}
+            >
+              👤 Manual Trade
             </button>
           </div>
 
           {feedback ? <div className={`feedback-banner ${feedback.type}`}>{feedback.text}</div> : null}
 
-          {activityTab === "manual" ? (
+          {/* --- Jev Auto Mode --- */}
+          {executionMode === "jev" ? (
+            <div className="jev-auto-panel">
+              <p className="jev-desc">
+                Jev will autonomously analyze indicators across your selected timeframe and execute trades based on your risk settings above.
+              </p>
+              <button
+                className={tradingEnabled ? "jev-execute-btn running" : "jev-execute-btn"}
+                onClick={() => void configurePortfolio(!tradingEnabled)}
+              >
+                {tradingEnabled
+                  ? `⏹ Stop Jev Auto-Trading`
+                  : brokerConfig && brokerConfig.broker.includes("bybit")
+                    ? brokerConfig.sandbox ? `▶ Start Trading on Testnet` : `▶ Start Trading on Mainnet`
+                    : `▶ Start Jev Auto-Trading`}
+              </button>
+              {tradingEnabled && (
+                <div className="jev-status-pill">
+                  <span className="pulse-dot" /> Jev is actively monitoring {symbol} on {tradeTimeframe}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* --- Manual Trade Mode --- */
             <div className="manual-order-panel">
               <div className="side-selector">
                 <button
@@ -624,19 +705,6 @@ export default function Home() {
                 >
                   SELL / EXIT
                 </button>
-              </div>
-              
-              <div className="order-field-row">
-                <span className="field-label">TIMEFRAME SLOT</span>
-                <div className="sizing-mode-toggle">
-                  <select value={tradeTimeframe} onChange={(e) => setTradeTimeframe(e.target.value)} style={{ padding: '6px', background: 'transparent', color: 'white', border: '1px solid var(--border)', borderRadius: '4px' }}>
-                    <option value="1m">1m</option>
-                    <option value="5m">5m</option>
-                    <option value="15m">15m</option>
-                    <option value="1h">1h</option>
-                    <option value="4h">4h</option>
-                  </select>
-                </div>
               </div>
 
               {/* Sizing Mode Switch */}
@@ -837,11 +905,23 @@ export default function Home() {
                 {orderLoading
                   ? "Executing Order..."
                   : orderSide === "buy"
-                  ? `Manual Buy ${symbol}`
-                  : `Manual Sell / Exit ${symbol}`}
+                  ? `Buy ${symbol}`
+                  : `Sell / Exit ${symbol}`}
               </button>
             </div>
-          ) : activityTab === "logs" ? (
+          )}
+
+          {/* Activity Tabs: Logs & History */}
+          <div className="activity-tabs">
+            <button className={activityTab === "logs" ? "activity-tab active" : "activity-tab"} onClick={() => setActivityTab("logs")}>
+              Jev Logs
+            </button>
+            <button className={activityTab === "positions" ? "activity-tab active" : "activity-tab"} onClick={() => setActivityTab("positions")}>
+              History ({snapshot?.trading.positions.length ?? 0})
+            </button>
+          </div>
+
+          {activityTab === "logs" ? (
             <div className="agent-log">
               {snapshot?.trading.agent_log.length ? (
                 snapshot.trading.agent_log
@@ -850,7 +930,7 @@ export default function Home() {
                   .map((event, index) => (
                     <details className="agent-event" key={`${event.timestamp}-${index}`}>
                       <summary>
-                        <span className={`action action-${event.executed}`}>{event.executed.toUpperCase()}</span>
+                        <span className={`action action-${event.executed || "unknown"}`}>{(event.executed || "UNKNOWN").toUpperCase()}</span>
                         <strong>{event.price ? `$${event.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "--"}</strong>
                         <span>{event.reason ?? (event.confidence === null ? "error" : `${(event.confidence * 100).toFixed(0)}% confidence`)}</span>
                         <time>{new Date(event.timestamp * 1000).toLocaleTimeString()}</time>
@@ -948,6 +1028,56 @@ export default function Home() {
               )}
             </div>
           )}
+          ) : (
+            <div className="positions-list">
+              {snapshot?.trading.positions.length ? (
+                snapshot.trading.positions
+                  .slice()
+                  .reverse()
+                  .map((trade, index) => (
+                    <div className={`position-record position-${trade.side}`} key={`${trade.timestamp}-${index}`}>
+                      <div className="position-head">
+                        <div className="trade-tag-group">
+                          <span className={`action action-${trade.side}`}>
+                            {trade.symbol} {trade.side.toUpperCase()}
+                          </span>
+                          <span className="trade-reason-tag">
+                            {trade.reason === "stop_loss"
+                              ? "🛑 STOP LOSS"
+                              : trade.reason === "take_profit"
+                              ? "🎯 TAKE PROFIT"
+                              : trade.is_manual
+                              ? "👤 MANUAL"
+                              : "🤖 JEV AUTO"}
+                          </span>
+                        </div>
+                        <time>{new Date(trade.timestamp * 1000).toLocaleString()}</time>
+                      </div>
+                      <div className="position-details">
+                        <Metric label="PRICE" value={`$${trade.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                        <Metric label="QUANTITY" value={trade.quantity.toFixed(6)} />
+                        <Metric label="ENTRY" value={`$${trade.entry_price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                        <Metric
+                          label="REALIZED P&L"
+                          value={trade.realized_pnl === null ? "Open" : `$${trade.realized_pnl.toFixed(2)}`}
+                        />
+                        <Metric
+                          label="CASH AFTER"
+                          value={`$${trade.cash_balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+                        />
+                        {trade.tp ? (
+                          <Metric label="TAKE PROFIT" value={`$${trade.tp.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                        ) : null}
+                        {trade.sl ? (
+                          <Metric label="STOP LOSS" value={`$${trade.sl.toLocaleString(undefined, { maximumFractionDigits: 2 })}`} />
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <p className="loading-log">No executed buy or sell positions yet.</p>
+              )}
+            </div>
         </aside>
       </div>
 
